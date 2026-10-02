@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>Счёт {{ invoice_id }}</title>
+  <style>
+    :root { --accent: #1a5fb4; --zebra: #e9f0fa; }
+    .masthead { background: var(--accent); color: #ffffff; padding: 5mm 6mm;
+                border-radius: 2mm; margin-bottom: 4mm; overflow: hidden; }
+    .masthead h1 { color: #ffffff; margin: 0; }
+    .masthead img.logo { float: right; height: 14mm; margin-left: 6mm; }
+    .masthead .sub { color: rgba(255, 255, 255, 0.85); font-size: 9.5pt;
+                     margin: 1mm 0 0; }
+    table { margin-top: 4mm; }
+    table th, table td { border-color: #b6cfe8; }
+    table thead th { background: var(--accent); color: #ffffff;
+                     border-color: #8fb8e0; }
+    table tfoot td { background: #dce8f7; }
+  </style>
+</head>
+<body>
+  {% set currency = invoice.get('Валюта', invoice.get('currency', 'руб.')) %}
+  {% set vat_rate = invoice.get('Ставка НДС', invoice.get('vat_rate', 22))|num %}
+  {% set seller_name = invoice.get('Продавец', invoice.get('seller_name', '')) %}
+  {% set seller_inn = invoice.get('ИНН', invoice.get('seller_inn', '')) %}
+  {% set seller_kpp = invoice.get('КПП', invoice.get('seller_kpp', '')) %}
+  {% set seller_address = invoice.get('Адрес продавца', invoice.get('seller_address', '')) %}
+  {% set seller_bank = invoice.get('Банк', invoice.get('seller_bank', '')) %}
+  {% set seller_account = invoice.get('Р/с', invoice.get('seller_account', '')) %}
+  {% set seller_bik = invoice.get('БИК', invoice.get('seller_bik', '')) %}
+  <div class="masthead">
+    {% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
+    <h1>Счёт № {{ invoice_id }}</h1>
+    <p class="sub">{{ seller_name }}{% if seller_inn %} · ИНН {{ seller_inn }}{% endif %}{% if seller_kpp %} · КПП {{ seller_kpp }}{% endif %}</p>
+  </div>
+  {% set date = invoice.get('Дата', invoice.get('date', '')) %}
+  <p>Дата: {{ date }}</p>
+  {% if seller_address %}<p class="muted">{{ seller_address }}</p>{% endif %}
+  {% if seller_bank or seller_account or seller_bik %}
+  <p class="muted">{% if seller_bank %}{{ seller_bank }}{% endif %}{% if seller_account %}, р/с {{ seller_account }}{% endif %}{% if seller_bik %}, БИК {{ seller_bik }}{% endif %}</p>
+  {% endif %}
+  {% set client = invoice.get('Клиент', invoice.get('customer_name', '')) %}
+  <p>Плательщик: <strong>{{ client }}</strong></p>
+  {% set address = invoice.get('customer_address', '') %}
+  {% if address %}<p class="muted">{{ address }}</p>{% endif %}
+  <table>
+    <thead>
+      <tr>
+        <th>№</th>
+        <th>Наименование</th>
+        <th class="num">Кол-во</th>
+        <th class="num">Цена, {{ currency }}</th>
+        <th class="num">Сумма, {{ currency }}</th>
+        <th class="num">НДС, {{ currency }}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      {% set qty = row.get('Количество', row.get('qty', row.get('количество', ''))) %}
+      {% set price = row.get('Цена', row.get('price', row.get('цена', ''))) %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ row.get('Наименование', row.get('name', row.get('товар', ''))) }}</td>
+        <td class="num">{{ qty }}</td>
+        <td class="num">{{ price|num|money }}</td>
+        <td class="num">{{ row.amount|money }}</td>
+        <td class="num">{% if vat_rate %}{{ (row.amount * vat_rate / (100 + vat_rate))|money }}{% else %}без НДС{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="5">Итого:</td>
+        <td class="num">{{ total|money }}</td>
+      </tr>
+      {% if vat_rate %}
+      <tr>
+        <td colspan="5">В том числе НДС ({{ vat_rate }}%):</td>
+        <td class="num">{{ (total * vat_rate / (100 + vat_rate))|money }}</td>
+      </tr>
+      {% endif %}
+    </tfoot>
+  </table>
+  {% set notes = invoice.get('Примечания') or invoice.get('notes') or invoice.get('comment') or invoice.get('комментарий') or '' %}
+  {% if notes %}<p><strong>Примечания / условия оплаты:</strong> {{ notes }}</p>{% endif %}
+  <p class="muted">Валюта счёта: {{ currency }}. Суммы указаны с учётом НДС.</p>
+  <p class="muted">Сформировано: {{ now.strftime('%d.%m.%Y %H:%M') }}</p>
+</body>
+</html>
